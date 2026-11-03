@@ -126,20 +126,65 @@ test('una venta pagada se factura una sola vez', async () => {
   expect(consultar).toHaveBeenCalledTimes(1)
 })
 
-test('si la factura falla no se vuelve a emitir', async () => {
+test('un fallo temporal al emitir se reintenta con la misma venta y para al lograrlo', async () => {
   const cobros = crearCobrosMock()
   const consultar = vi
     .spyOn(cobros, 'consultarCobro')
     .mockImplementation(async (referencia) => cobroPagado(referencia))
   const { app, emitir } = crearDePrueba(cobros)
+  emitir.mockRejectedValueOnce(new Error('fetch failed'))
+  const { id } = (await (await publicar(app, nueva)).json()) as Venta
+
+  const venta = await esperarEstado(app, id, 'facturada')
+  await pausa(20)
+  expect(venta.error).toBeNull()
+  expect(venta.factura?.numero).toBeTruthy()
+  expect(emitir).toHaveBeenCalledTimes(2)
+  expect(emitir.mock.calls.map(([{ id }]) => id)).toEqual([id, id])
+  expect(consultar).toHaveBeenCalledTimes(1)
+})
+
+test('si la factura sigue fallando, la venta queda fallida al agotar los intentos', async () => {
+  const cobros = crearCobrosMock()
+  const consultar = vi
+    .spyOn(cobros, 'consultarCobro')
+    .mockImplementation(async (referencia) => cobroPagado(referencia))
+  const { app, emitir, enviar } = crearDePrueba(cobros)
   emitir.mockRejectedValue(new Error('Factus respondió 500'))
   const { id } = (await (await publicar(app, nueva)).json()) as Venta
 
   const venta = await esperarEstado(app, id, 'fallida')
   await pausa(20)
   expect(venta.error).toBe('Factus respondió 500')
-  expect(emitir).toHaveBeenCalledTimes(1)
+  expect(emitir).toHaveBeenCalledTimes(3)
   expect(consultar).toHaveBeenCalledTimes(1)
+  expect(enviar).not.toHaveBeenCalled()
+})
+
+test('mientras reintenta la factura, la venta sigue pagada y sin error', async () => {
+  const cobros = crearCobrosMock()
+  vi.spyOn(cobros, 'consultarCobro').mockImplementation(async (referencia) => cobroPagado(referencia))
+  let dejarPasar = () => {}
+  const facturacion = crearFacturacionMock()
+  const emitirReal = facturacion.emitirFactura
+  const emitir = vi
+    .spyOn(facturacion, 'emitirFactura')
+    .mockRejectedValueOnce(new Error('fetch failed'))
+    .mockImplementationOnce(async (venta) => {
+      await new Promise<void>((listo) => {
+        dejarPasar = listo
+      })
+      return emitirReal(venta)
+    })
+  const app = crearApp(crearFlujo({ cobros, facturacion, intervaloMs: 1 }))
+  const { id } = (await (await publicar(app, nueva)).json()) as Venta
+
+  await vi.waitFor(() => expect(emitir).toHaveBeenCalledTimes(2))
+  const enEspera = await esperarEstado(app, id, 'pagada')
+  expect(enEspera.error).toBeNull()
+
+  dejarPasar()
+  await esperarEstado(app, id, 'facturada')
 })
 
 test('un fallo de enviarCorreo no hace parecer fallida la venta facturada', async () => {
