@@ -18,3 +18,18 @@ button:disabled { background: #d5ded9; color: #45574e; cursor: default; }
 .error { padding: 16px; background: #fff0ec; color: #852a16; border: 1px solid #ba624e; border-radius: 8px; }
 img { max-width: 100%; height: auto; }
 p { line-height: 1.6; overflow-wrap: anywhere; }
+a { color: #155340; text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+input, button, .enlace { min-height: 48px; }
+button, .enlace { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; }
+.saltar { position: absolute; top: -100px; left: 16px; padding: 12px; background: white; z-index: 1; }
+.saltar:focus { top: 8px; }
+.pasos { display: flex; gap: 8px; padding: 0; list-style: none; }
+.pasos li { flex: 1; min-width: 0; padding: 10px 4px; text-align: center; border-bottom: 3px solid #b6c9c0; }
+.pasos [aria-current] { border-color: #155340; color: #155340; font-weight: 700; }
+.cufe { display: block; font: .875rem/1.6 ui-monospace, monospace; overflow-wrap: anywhere; }
+.qr { display: block; margin: 20px auto; image-rendering: pixelated; }
+@media (max-width: 400px) {
+  section, fieldset { padding: 16px; }
+  button, .enlace { width: 100%; }
+}
