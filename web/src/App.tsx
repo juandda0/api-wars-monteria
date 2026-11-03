@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Venta } from '../../contratos/tipos'
 import { calcularTotal, crearPedido, enviarPedido, pesos, productos } from './pedido'
 import './App.css'
+import { seguirVenta } from './seguimiento'
+import { EstadoPedido } from './EstadoPedido'
 
 export function App() {
   const [comprador, setComprador] = useState({ nombre: '', documento: '', correo: '' })
@@ -9,25 +11,14 @@ export function App() {
   const [venta, setVenta] = useState<Venta | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
+  const [consulta, setConsulta] = useState(0)
   const enviando = useRef(false)
   const pedido = crearPedido(comprador, cantidades)
   const total = calcularTotal(pedido.lineas)
-  const terminada = venta?.estado === 'facturada' || venta?.estado === 'fallida'
-
   useEffect(() => {
-    if (!venta || terminada) return
-    const intervalo = setInterval(async () => {
-      try {
-        const respuesta = await fetch(`/api/ventas/${venta.id}`)
-        if (!respuesta.ok) throw new Error()
-        setVenta(await respuesta.json())
-        setError('')
-      } catch {
-        setError('No pudimos consultar el estado. Volveremos a intentar.')
-      }
-    }, 1500)
-    return () => clearInterval(intervalo)
-  }, [venta?.id, terminada])
+    if (!venta) return
+    return seguirVenta(venta.id, setVenta, setError)
+  }, [venta?.id, consulta])
 
   async function pedir(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault()
@@ -86,13 +77,9 @@ export function App() {
             {cargando ? 'Creando pedido…' : 'Continuar al pago'}
           </button>
         </form>
-      </> : <section aria-label="Estado del pedido">
-        <p>Total: {pesos(venta.total)} · Estado: <strong>{venta.estado}</strong></p>
-        {venta.estado === 'esperando_pago' && venta.cobro?.qrBase64 && <img alt="QR de pago" width={160}
-          height={160} src={`data:image/png;base64,${venta.cobro.qrBase64}`} />}
-        {venta.factura && <p>Factura {venta.factura.numero}<br />CUFE {venta.factura.cufe}</p>}
-        {(venta.error || error) && <p role="alert" className="error">{venta.error || error}</p>}
-      </section>}
+      </> : <EstadoPedido venta={venta} error={error}
+        reconsultar={() => { setError(''); setConsulta(actual => actual + 1) }}
+        volver={() => { setError(''); setVenta(null) }} />}
     </main>
   )
 }
