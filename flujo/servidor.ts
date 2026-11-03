@@ -1,14 +1,17 @@
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { crearCobrosMock } from '../cobros/mock'
-import { crearFacturacionMock } from '../facturacion/mock'
+import { existsSync } from 'node:fs'
 import { crearApp } from './app'
 import { crearFlujo } from './flujo'
+import { crearServicios } from './servicios'
 
-// Cuando existan los clientes reales, se cambian aquí.
-const flujo = crearFlujo({ cobros: crearCobrosMock(), facturacion: crearFacturacionMock() })
+// tsx no carga .env por su cuenta. Lo que ya esté en el entorno tiene prioridad.
+if (existsSync('.env')) process.loadEnvFile()
 
-const app = crearApp(flujo)
+const { cobros, facturacion, modos } = crearServicios()
+console.log(`Cobros: ${modos.cobros}. Facturación: ${modos.facturacion}.`)
+
+const app = crearApp(crearFlujo({ cobros, facturacion }))
 app.use('/*', serveStatic({ root: './web/dist' }))
 
 const port = Number(process.env.PORT ?? 8787)
