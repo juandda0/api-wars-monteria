@@ -1,0 +1,87 @@
+openapi: 3.0.3
+info:
+  title: API de la app
+  version: 0.1.0
+  description: Lo que el backend le ofrece a la interfaz. Los formatos completos están en tipos.ts.
+paths:
+  /api/ventas:
+    post:
+      summary: Crea la venta y su cobro con QR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NuevaVenta' }
+      responses:
+        '201':
+          description: Venta creada, esperando pago
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Venta' }
+        '400': { description: El cuerpo no es JSON válido }
+        '422': { description: 'Venta inválida, por ejemplo un total fuera de 10.000 a 12.000.000 COP' }
+  /api/ventas/{id}:
+    get:
+      summary: Consulta la venta. La interfaz la pregunta hasta `facturada` o `fallida`
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Estado actual
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Venta' }
+        '404': { description: No existe }
+components:
+  schemas:
+    Comprador:
+      type: object
+      required: [nombre, documento, correo]
+      properties:
+        nombre: { type: string }
+        documento: { type: string }
+        correo: { type: string }
+    LineaVenta:
+      type: object
+      required: [descripcion, cantidad, precioSinIva, ivaPorcentaje]
+      properties:
+        descripcion: { type: string }
+        cantidad: { type: number }
+        precioSinIva: { type: number }
+        ivaPorcentaje: { type: number }
+    NuevaVenta:
+      type: object
+      required: [comprador, lineas]
+      properties:
+        comprador: { $ref: '#/components/schemas/Comprador' }
+        lineas:
+          type: array
+          items: { $ref: '#/components/schemas/LineaVenta' }
+    Cobro:
+      type: object
+      required: [referencia, monto, estado, qrBase64]
+      properties:
+        referencia: { type: string }
+        monto: { type: number }
+        estado: { type: string, enum: [started, ready, paid, failed, rejected] }
+        qrBase64: { type: string, nullable: true }
+    Factura:
+      type: object
+      required: [numero, cufe, qrUrl, urlPublica]
+      properties:
+        numero: { type: string }
+        cufe: { type: string }
+        qrUrl: { type: string }
+        urlPublica: { type: string }
+    Venta:
+      allOf:
+        - { $ref: '#/components/schemas/NuevaVenta' }
+        - type: object
+          required: [id, total, estado, cobro, factura, error]
+          properties:
+            id: { type: string }
+            total: { type: number }
+            estado: { type: string, enum: [esperando_pago, pagada, facturada, fallida] }
+            cobro: { allOf: [{ $ref: '#/components/schemas/Cobro' }], nullable: true }
+            factura: { allOf: [{ $ref: '#/components/schemas/Factura' }], nullable: true }
+            error: { type: string, nullable: true }
