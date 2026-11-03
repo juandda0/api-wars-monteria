@@ -13,8 +13,11 @@ export function App() {
   const [error, setError] = useState('')
   const [consulta, setConsulta] = useState(0)
   const enviando = useRef(false)
+  const encabezado = useRef<HTMLHeadingElement>(null)
   const pedido = crearPedido(comprador, cantidades)
   const total = calcularTotal(pedido.lineas)
+  const paso = !venta ? 1 : venta.estado === 'facturada' ? 3 : 2
+  useEffect(() => { encabezado.current?.focus() }, [venta?.id, venta?.estado])
   useEffect(() => {
     if (!venta) return
     return seguirVenta(venta.id, setVenta, setError)
@@ -38,9 +41,15 @@ export function App() {
   }
 
   return (
-    <main>
+    <>
+    <a className="saltar" href="#contenido">Saltar al contenido</a>
+    <main id="contenido" tabIndex={-1}>
       <p className="eyebrow">API WARS · MONTERÍA</p>
-      <h1>Kiosco del congreso</h1>
+      <h1 ref={encabezado} tabIndex={-1}>Kiosco del congreso</h1>
+      <ol className="pasos" aria-label="Progreso del pedido">
+        {['Pedido', 'Pago', 'Factura'].map((nombre, indice) => <li key={nombre}
+          aria-current={paso === indice + 1 ? 'step' : undefined}>{indice + 1}. {nombre}</li>)}
+      </ol>
       {!venta ? <>
         <p>Elige tu pedido y completa tus datos para recibir la factura en tu correo.</p>
         <form onSubmit={pedir} aria-busy={cargando}>
@@ -81,5 +90,6 @@ export function App() {
         reconsultar={() => { setError(''); setConsulta(actual => actual + 1) }}
         volver={() => { setError(''); setVenta(null) }} />}
     </main>
+    </>
   )
 }
