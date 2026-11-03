@@ -5,6 +5,7 @@ const MONTO_MINIMO = 10_000
 const MONTO_MAXIMO = 12_000_000
 
 const mensajeDe = (error: unknown) => (error instanceof Error ? error.message : String(error))
+const esperar = (ms: number) => new Promise((listo) => setTimeout(listo, ms))
 
 export class VentaInvalida extends Error {}
 
@@ -13,19 +14,26 @@ interface Opciones {
   facturacion: ServicioFacturacion
   intervaloMs?: number
   maxConsultas?: number
+  maxIntentosFactura?: number
 }
 
 export type Flujo = ReturnType<typeof crearFlujo>
 
 /** El corazón de la demo: venta → cobro → pagado → factura, sin que nadie haga clic. */
-export function crearFlujo({ cobros, facturacion, intervaloMs = 3000, maxConsultas = 200 }: Opciones) {
+export function crearFlujo({
+  cobros,
+  facturacion,
+  intervaloMs = 3000,
+  maxConsultas = 200,
+  maxIntentosFactura = 3,
+}: Opciones) {
   const ventas = new Map<string, Venta>()
 
   async function esperarPago(venta: Venta) {
     const referencia = venta.cobro!.referencia
     let ultimoFallo: string | null = null
     for (let i = 0; i < maxConsultas; i++) {
-      await new Promise((listo) => setTimeout(listo, intervaloMs))
+      await esperar(intervaloMs)
       let cobro: Cobro
       try {
         cobro = await cobros.consultarCobro(referencia)
@@ -48,10 +56,23 @@ export function crearFlujo({ cobros, facturacion, intervaloMs = 3000, maxConsult
     )
   }
 
-  // Va fuera del ciclo de consultas para que ningún reintento pueda emitir otra factura.
+  // Reintentar no duplica la factura: el cliente de Factus usa venta.id como reference_code,
+  // y Factus devuelve la factura existente si esa referencia ya se procesó.
+  async function emitirConReintentos(venta: Venta) {
+    for (let intento = 1; ; intento++) {
+      try {
+        return await facturacion.emitirFactura(venta)
+      } catch (error) {
+        if (intento >= maxIntentosFactura) throw error
+        await esperar(intervaloMs)
+      }
+    }
+  }
+
+  // Va fuera del ciclo de consultas: solo se llega aquí una vez por venta.
   async function facturar(venta: Venta) {
     venta.estado = 'pagada'
-    const factura = await facturacion.emitirFactura(venta)
+    const factura = await emitirConReintentos(venta)
     venta.factura = factura
     venta.estado = 'facturada'
     try {
