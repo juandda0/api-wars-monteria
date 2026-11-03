@@ -49,6 +49,11 @@ interface RespuestaFactura {
   }
 }
 
+interface RespuestaPdf {
+  pdf_base_64_encoded?: string
+  data?: { pdf_base_64_encoded?: string }
+}
+
 const redondear = (valor: number) => Math.round(valor * 100) / 100
 const dinero = (valor: number) => redondear(valor).toFixed(2)
 
@@ -137,7 +142,8 @@ export function crearFacturacionFactus(config: ConfigFactus): ServicioFacturacio
       )
     }
     try {
-      return JSON.parse(texto) as T
+      // La respuesta de send-email no está documentada: un 2xx sin cuerpo también es éxito.
+      return (texto ? JSON.parse(texto) : {}) as T
     } catch {
       throw new Error(`Factus devolvió una respuesta que no es JSON en ${operacion}`)
     }
@@ -224,11 +230,20 @@ export function crearFacturacionFactus(config: ConfigFactus): ServicioFacturacio
       }
       return { numero: number, cufe, qrUrl: links.qr, urlPublica: links.public_url }
     },
-    async descargarPdf() {
-      throw new Error('descargarPdf todavía no está implementado')
+    async descargarPdf(numero: string) {
+      const respuesta = await pedirConToken<RespuestaPdf>(
+        'GET',
+        `/v2/bills/${encodeURIComponent(numero)}/download-pdf`,
+      )
+      // POR CONFIRMAR: la documentación no dice si el campo va en la raíz o dentro de data.
+      const pdf = respuesta.data?.pdf_base_64_encoded ?? respuesta.pdf_base_64_encoded
+      if (!pdf) throw new Error(`Factus no devolvió el PDF de la factura ${numero}`)
+      return pdf
     },
-    async enviarCorreo() {
-      throw new Error('enviarCorreo todavía no está implementado')
+    async enviarCorreo(numero: string, correo: string) {
+      await pedirConToken('POST', `/v2/bills/${encodeURIComponent(numero)}/send-email`, {
+        email: correo,
+      })
     },
   }
 }

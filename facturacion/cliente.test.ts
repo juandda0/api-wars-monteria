@@ -293,3 +293,67 @@ test('falla si la respuesta no trae los datos de la factura', async () => {
     'Factus no devolvió número, CUFE y enlaces para la venta venta-1',
   )
 })
+
+test('descarga el PDF en base64 con el token y el User-Agent', async () => {
+  const { a } = simularFactus({
+    '/v2/bills/SETP1/download-pdf': () =>
+      json({ data: { pdf_base_64_encoded: 'UERG' } }),
+  })
+  const pdf = await crearFacturacionFactus(config).descargarPdf('SETP1')
+
+  expect(pdf).toBe('UERG')
+  const { init, encabezados } = a('/v2/bills/SETP1/download-pdf')[0]
+  expect(init.method).toBe('GET')
+  expect(encabezados.get('User-Agent')).toBe('agente-de-prueba')
+  expect(encabezados.get('Authorization')).toBe('Bearer token-1')
+})
+
+test('también acepta el PDF en la raíz de la respuesta', async () => {
+  simularFactus({ '/v2/bills/SETP1/download-pdf': () => json({ pdf_base_64_encoded: 'UERG' }) })
+  await expect(crearFacturacionFactus(config).descargarPdf('SETP1')).resolves.toBe('UERG')
+})
+
+test('falla si la respuesta no trae el PDF', async () => {
+  simularFactus({ '/v2/bills/SETP1/download-pdf': () => json({ data: {} }) })
+  await expect(crearFacturacionFactus(config).descargarPdf('SETP1')).rejects.toThrow(
+    'Factus no devolvió el PDF de la factura SETP1',
+  )
+})
+
+test('envía el correo al comprador', async () => {
+  const { a } = simularFactus({
+    '/v2/bills/SETP1/send-email': () => json({ status: 'OK' }),
+  })
+  await crearFacturacionFactus(config).enviarCorreo('SETP1', 'ana@ejemplo.invalid')
+
+  const { init, encabezados } = a('/v2/bills/SETP1/send-email')[0]
+  expect(init.method).toBe('POST')
+  expect(JSON.parse(init.body as string)).toEqual({ email: 'ana@ejemplo.invalid' })
+  expect(encabezados.get('Content-Type')).toBe('application/json')
+  expect(encabezados.get('User-Agent')).toBe('agente-de-prueba')
+  expect(encabezados.get('Authorization')).toBe('Bearer token-1')
+})
+
+test('un error al enviar el correo se informa', async () => {
+  simularFactus({
+    '/v2/bills/SETP1/send-email': () => json({ message: 'Correo inválido' }, 422),
+  })
+  await expect(
+    crearFacturacionFactus(config).enviarCorreo('SETP1', 'no-es-correo'),
+  ).rejects.toThrow('Factus respondió 422 en POST /v2/bills/SETP1/send-email: Correo inválido')
+})
+
+test('escapa el número de la factura en la ruta', async () => {
+  const { llamadas } = simularFactus({
+    '/v2/bills/A%2FB/download-pdf': () => json({ pdf_base_64_encoded: 'UERG' }),
+  })
+  await crearFacturacionFactus(config).descargarPdf('A/B')
+  expect(llamadas.at(-1)?.ruta).toBe('/v2/bills/A%2FB/download-pdf')
+})
+
+test('acepta una respuesta sin cuerpo al enviar el correo', async () => {
+  simularFactus({ '/v2/bills/SETP1/send-email': () => new Response(null, { status: 204 }) })
+  await expect(
+    crearFacturacionFactus(config).enviarCorreo('SETP1', 'ana@ejemplo.invalid'),
+  ).resolves.toBeUndefined()
+})
