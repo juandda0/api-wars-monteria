@@ -23,3 +23,5 @@ export function crearCobrosMock(consultasHastaPagar = 3): ServicioCobros {
     },
   }
 }
+
+export const roto: number = "texto"
