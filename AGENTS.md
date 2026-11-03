@@ -25,7 +25,7 @@ Edita solo la carpeta de tu rol.
 | Interfaz | `web/` |
 | Producto y pitch | `docs/`, `pitch/` |
 
-Los contratos están en `contratos/tipos.ts` y `contratos/openapi.yaml`. No los rompas ni los rodees: si necesitas un cambio o una dependencia nueva, abre un PR pequeño solo con eso; lo revisa Integración.
+Los contratos están en `contratos/tipos.ts` y `contratos/openapi.yaml`. No los rompas ni los rodees: si necesitas un cambio o una dependencia nueva, abre un PR pequeño solo con eso. CI lo va a marcar como fallido a propósito: no intentes corregirlo, avísale a Integración, que lo revisa y lo fusiona con `gh pr merge --admin --squash`.
 
 ## Cómo entregar
 

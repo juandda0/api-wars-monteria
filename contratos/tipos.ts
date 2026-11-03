@@ -59,5 +59,3 @@ export interface ServicioFacturacion {
   descargarPdf(numero: string): Promise<string>
   enviarCorreo(numero: string, correo: string): Promise<void>
 }
-
-// Prueba de CODEOWNERS

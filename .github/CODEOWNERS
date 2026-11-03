@@ -1,9 +1,0 @@
-# Estos archivos requieren la aprobación de Integración. Todo lo demás entra solo si pasan las pruebas.
-/contratos/ @juandda0
-/.github/ @juandda0
-/package.json @juandda0
-/package-lock.json @juandda0
-/tsconfig.json @juandda0
-/vite.config.ts @juandda0
-/vitest.config.ts @juandda0
-/AGENTS.md @juandda0
