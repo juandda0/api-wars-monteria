@@ -1,0 +1,20 @@
+:root { font-family: system-ui, sans-serif; color: #172b35; background: #f1f5f3; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 640px; padding: 24px 16px 48px; margin: auto; }
+h1 { font-size: 2rem; line-height: 1.1; }
+h2 { font-size: 1.25rem; }
+.eyebrow { color: #23594a; font-weight: 700; letter-spacing: .08em; }
+section, fieldset { background: white; border: 1px solid #b6c9c0; border-radius: 16px; padding: 20px; margin: 20px 0; min-width: 0; }
+legend { font-weight: 700; }
+.producto { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 12px; align-items: center; margin: 12px 0 20px; }
+.producto small { display: block; margin-top: 4px; }
+label { display: block; font-weight: 600; }
+input { width: 100%; min-width: 0; margin: 8px 0 16px; padding: 12px; border: 1px solid #617b70; border-radius: 8px; font: inherit; color: inherit; background: white; }
+button, .enlace { display: inline-block; padding: 14px 20px; border: 0; border-radius: 10px; background: #155340; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { background: #d5ded9; color: #45574e; cursor: default; }
+:focus-visible { outline: 3px solid #ac4100; outline-offset: 4px; }
+.total { font-size: 1.4rem; font-weight: 700; }
+.error { padding: 16px; background: #fff0ec; color: #852a16; border: 1px solid #ba624e; border-radius: 8px; }
+img { max-width: 100%; height: auto; }
+p { line-height: 1.6; overflow-wrap: anywhere; }
