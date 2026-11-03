@@ -15,9 +15,9 @@ La base ya trae el flujo funcionando con mocks y una pantalla provisional. Cada 
 
 En el simulacro son tres, así que cada uno cubre más de un rol.
 
-- **Juan Diego, Integración e Interfaz:** revisar conflictos y PRs de contratos, y evitar que una venta se facture dos veces. Refinar la UI y la UX en `web/src/App.tsx`: pedido, QR con espera de pago y factura lista, bien en celular.
-- **Elias David, Facturación:** escribir `facturacion/cliente.ts` para Factus v2, implementando `ServicioFacturacion`, con pruebas que simulen `fetch`.
-- **Eddy Lans, Cobros y pitch:** escribir `cobros/cliente.ts` para Factus Pay, implementando `ServicioCobros`, con pruebas que simulen `fetch`. Probar el flujo en local y escribir en `pitch/` un guion de 2 minutos.
+- **Juan Diego, Integración y Facturación:** escribir `facturacion/cliente.ts` para Factus v2, implementando `ServicioFacturacion`, con pruebas que simulen `fetch`. Reforzar el flujo, evitar que una venta se facture dos veces y conectar los clientes reales. Revisar conflictos y PRs de contratos.
+- **Elias David, Cobros:** escribir `cobros/cliente.ts` para Factus Pay, implementando `ServicioCobros`, con pruebas que simulen `fetch`. Probar el flujo en local y escribir los casos de prueba en `docs/`.
+- **Eddy Lans, Interfaz y pitch:** reemplazar `web/src/App.tsx` por las pantallas de pedido, QR con espera de pago y factura lista, bien en celular. Escribir en `pitch/` un guion de 2 minutos.
 
 ## Qué observar
 
