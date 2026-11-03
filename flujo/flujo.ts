@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import type { NuevaVenta, ServicioCobros, ServicioFacturacion, Venta } from '../contratos/tipos'
+import type { Cobro, NuevaVenta, ServicioCobros, ServicioFacturacion, Venta } from '../contratos/tipos'
 
 const MONTO_MINIMO = 10_000
 const MONTO_MAXIMO = 12_000_000
+
+const mensajeDe = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 export class VentaInvalida extends Error {}
 
@@ -19,24 +21,45 @@ export type Flujo = ReturnType<typeof crearFlujo>
 export function crearFlujo({ cobros, facturacion, intervaloMs = 3000, maxConsultas = 200 }: Opciones) {
   const ventas = new Map<string, Venta>()
 
-  async function esperarPagoYFacturar(venta: Venta) {
+  async function esperarPago(venta: Venta) {
     const referencia = venta.cobro!.referencia
+    let ultimoFallo: string | null = null
     for (let i = 0; i < maxConsultas; i++) {
       await new Promise((listo) => setTimeout(listo, intervaloMs))
-      const cobro = await cobros.consultarCobro(referencia)
+      let cobro: Cobro
+      try {
+        cobro = await cobros.consultarCobro(referencia)
+      } catch (error) {
+        // Un fallo al consultar no dice nada del pago: se sigue dentro del límite de consultas.
+        ultimoFallo = mensajeDe(error)
+        continue
+      }
+      ultimoFallo = null
       venta.cobro = cobro
       if (cobro.estado === 'failed' || cobro.estado === 'rejected') {
         throw new Error(`El cobro terminó en ${cobro.estado}`)
       }
-      if (cobro.estado === 'paid') {
-        venta.estado = 'pagada'
-        venta.factura = await facturacion.emitirFactura(venta)
-        venta.estado = 'facturada'
-        await facturacion.enviarCorreo(venta.factura.numero, venta.comprador.correo)
-        return
-      }
+      if (cobro.estado === 'paid') return
     }
-    throw new Error('Se agotó el tiempo de espera del pago')
+    throw new Error(
+      ultimoFallo
+        ? `No se pudo consultar el cobro: ${ultimoFallo}`
+        : 'Se agotó el tiempo de espera del pago',
+    )
+  }
+
+  // Va fuera del ciclo de consultas para que ningún reintento pueda emitir otra factura.
+  async function facturar(venta: Venta) {
+    venta.estado = 'pagada'
+    const factura = await facturacion.emitirFactura(venta)
+    venta.factura = factura
+    venta.estado = 'facturada'
+    try {
+      await facturacion.enviarCorreo(factura.numero, venta.comprador.correo)
+    } catch (error) {
+      // La venta ya está facturada: el correo es un extra y no cambia su estado.
+      console.error(`No se pudo enviar el correo de la factura ${factura.numero}: ${mensajeDe(error)}`)
+    }
   }
 
   return {
@@ -66,10 +89,12 @@ export function crearFlujo({ cobros, facturacion, intervaloMs = 3000, maxConsult
       }
       ventas.set(id, venta)
 
-      esperarPagoYFacturar(venta).catch((error: unknown) => {
-        venta.error = error instanceof Error ? error.message : String(error)
-        if (venta.estado !== 'facturada') venta.estado = 'fallida'
-      })
+      esperarPago(venta)
+        .then(() => facturar(venta))
+        .catch((error: unknown) => {
+          venta.error = mensajeDe(error)
+          venta.estado = 'fallida'
+        })
       return venta
     },
     obtenerVenta(id: string) {
