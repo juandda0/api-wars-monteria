@@ -8,6 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Archivos de Integración
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'juandda0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if gh pr diff "$PR" --name-only --repo "$GITHUB_REPOSITORY" | grep -E '^(contratos/|\.github/|package(-lock)?\.json$|tsconfig\.json$|vite\.config\.ts$|vitest\.config\.ts$|AGENTS\.md$)'; then
+            echo "Este PR toca archivos de Integración: lo fusiona Juan Diego después de revisarlo."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
